@@ -1,0 +1,5 @@
+# Exclude IDEA files
+.idea/
+
+# Excluse lost-and-found binaries
+bin/
