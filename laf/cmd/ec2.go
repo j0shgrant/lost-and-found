@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/j0shgrant/lost-and-found/internal/aws"
 	"github.com/spf13/cobra"
 	"os"
@@ -14,6 +15,7 @@ var ec2Cmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, _ []string) {
 		// parse flags
 		regionFlag := cmd.Flag("region").Value.String()
+		requiredTagsFlag := cmd.Flag("required-tags").Value.String()
 
 		// build list of regions
 		var regions []string
@@ -22,8 +24,12 @@ var ec2Cmd = &cobra.Command{
 				regions = append(regions, region)
 			}
 		}
-		if len(regions) < 1 {
-			regions = make([]string, 0)
+
+		// build list of tags
+		requiredTags, err := aws.ParseTags(requiredTagsFlag)
+		if err != nil {
+			_, _ = fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
 		}
 
 		// build EC2 service
@@ -39,7 +45,17 @@ var ec2Cmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		// Filter instances
+		var filteredInstances []types.Instance
 		for _, instance := range instances {
+			if !aws.EC2InstanceHasRequiredTags(requiredTags, instance) {
+				continue
+			}
+
+			filteredInstances = append(filteredInstances, instance)
+		}
+
+		for _, instance := range filteredInstances {
 			fmt.Println(*instance.InstanceId)
 		}
 	},

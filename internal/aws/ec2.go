@@ -68,6 +68,34 @@ func (s *EC2Service) ListInstances() ([]types.Instance, error) {
 	return instances, nil
 }
 
+func EC2InstanceHasRequiredTags(requiredTags []Tag, instance types.Instance) bool {
+	// return true on empty required tag array
+	if len(requiredTags) == 0 {
+		return true
+	}
+
+	// build map of instance tags
+	instanceTags := make(map[string]string)
+	for _, tag := range instance.Tags {
+		instanceTags[*tag.Key] = *tag.Value
+	}
+
+	// compare instance tags
+	for _, requiredTag := range requiredTags {
+		if instanceTagValue, exists := instanceTags[requiredTag.Key]; exists {
+			if !requiredTag.Wildcard {
+				if requiredTag.Value != instanceTagValue {
+					return false
+				}
+			}
+		} else {
+			return false
+		}
+	}
+
+	return true
+}
+
 func newEC2ClientsFromConfigs(configs map[string]aws.Config) map[string]*ec2.Client {
 	clients := make(map[string]*ec2.Client)
 	for region, cfg := range configs {
