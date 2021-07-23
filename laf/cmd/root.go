@@ -7,7 +7,7 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use: "laf",
+	Use:  "laf",
 	Long: "laf - lost-and-found is a CLI utility for finding AWS resources that are untagged, non-compliant, or in some way misbehaving.",
 }
 
