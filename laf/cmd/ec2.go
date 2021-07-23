@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/j0shgrant/lost-and-found/internal/aws"
 	"github.com/spf13/cobra"
 	"os"
@@ -32,6 +31,9 @@ var ec2Cmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		// build filters
+		filters := aws.EC2FiltersFromTags(requiredTags)
+
 		// build EC2 service
 		ec2, err := aws.NewEC2Service(regions)
 		if err != nil {
@@ -39,23 +41,14 @@ var ec2Cmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		instances, err := ec2.ListInstances()
+		// listed filtered instances
+		instances, err := ec2.ListInstances(filters)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "encountered an error listing EC2 instances: %s\n", err.Error())
 			os.Exit(1)
 		}
 
-		// Filter instances
-		var filteredInstances []types.Instance
 		for _, instance := range instances {
-			if !aws.EC2InstanceHasRequiredTags(requiredTags, instance) {
-				continue
-			}
-
-			filteredInstances = append(filteredInstances, instance)
-		}
-
-		for _, instance := range filteredInstances {
 			fmt.Println(*instance.InstanceId)
 		}
 	},

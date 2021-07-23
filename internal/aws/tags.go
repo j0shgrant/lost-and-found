@@ -2,6 +2,8 @@ package aws
 
 import (
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"strings"
 )
 
@@ -40,4 +42,27 @@ func ParseTags(flagValue string) ([]Tag, error) {
 	}
 
 	return tags, nil
+}
+
+func EC2FiltersFromTags(tags []Tag) []types.Filter {
+	var filters []types.Filter
+	for _, tag := range tags {
+		var filter types.Filter
+		// create tag-key filter if tag is wildcard
+		if tag.Wildcard {
+			filter = types.Filter{
+				Name:   aws.String("tag-key"),
+				Values: []string{tag.Key},
+			}
+		} else {
+			filter = types.Filter{
+				Name:   aws.String(fmt.Sprintf("tag:%s", tag.Key)),
+				Values: []string{tag.Value},
+			}
+		}
+
+		filters = append(filters, filter)
+	}
+
+	return filters
 }
