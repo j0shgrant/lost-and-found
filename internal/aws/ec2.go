@@ -46,7 +46,7 @@ func (s *EC2Service) ListInstances(filters []types.Filter) ([]types.Instance, er
 		var reservations []types.Reservation
 		for {
 			output, err := s.clients[region].DescribeInstances(context.TODO(), &ec2.DescribeInstancesInput{
-				Filters: filters,
+				Filters:   filters,
 				NextToken: next,
 			})
 			if err != nil {
