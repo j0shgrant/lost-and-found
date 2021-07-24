@@ -2,6 +2,7 @@ package aws
 
 import (
 	"context"
+	"fmt"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -34,6 +35,10 @@ func (s *EC2Service) ListInstances(filters []types.Filter) ([]types.Instance, er
 	}
 	sort.Strings(regions)
 
+	for _, filter := range filters {
+		fmt.Println(*filter.Name)
+	}
+
 	var instances []types.Instance
 	for _, region := range regions {
 		// Pull all reservations
@@ -41,7 +46,7 @@ func (s *EC2Service) ListInstances(filters []types.Filter) ([]types.Instance, er
 		var reservations []types.Reservation
 		for {
 			output, err := s.clients[region].DescribeInstances(context.TODO(), &ec2.DescribeInstancesInput{
-				Filters:   filters,
+				Filters: filters,
 				NextToken: next,
 			})
 			if err != nil {
@@ -67,6 +72,35 @@ func (s *EC2Service) ListInstances(filters []types.Filter) ([]types.Instance, er
 	}
 
 	return instances, nil
+}
+
+func EC2InstanceHasExcludedTags(excludedTags []Tag, instance types.Instance) bool {
+	// return true on empty excluded tag array
+	if len(excludedTags) == 0 {
+		return false
+	}
+
+	// build map of instance tags
+	instanceTags := make(map[string]string)
+	for _, tag := range instance.Tags {
+		instanceTags[*tag.Key] = *tag.Value
+	}
+
+	// compare instance tags
+	for _, excludedTag := range excludedTags {
+		if instanceTagValue, exists := instanceTags[excludedTag.Key]; exists {
+			if !excludedTag.Wildcard {
+				if excludedTag.Value == instanceTagValue {
+					return true
+				}
+
+				continue
+			}
+
+			return true
+		}
+	}
+	return false
 }
 
 func newEC2ClientsFromConfigs(configs map[string]aws.Config) map[string]*ec2.Client {

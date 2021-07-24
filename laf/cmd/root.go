@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	region, tag string
+	region, requiredTags, excludedTags string
 
 	rootCmd = &cobra.Command{
 		Use:  "laf",
@@ -24,5 +24,6 @@ func Execute() {
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&region, "region", "", "A comma-separated list of AWS regions to include: \"eu-west-1,eu-west-2\"")
-	rootCmd.PersistentFlags().StringVar(&tag, "required-tags", "", "A comma-separated list of AWS tags to match on: eg. only return resources with tags \"foo=bar,bar,qux=quux\"")
+	rootCmd.PersistentFlags().StringVar(&requiredTags, "required-tags", "", "A comma-separated list of AWS tags to match on: eg. only return resources with tags \"foo=bar,bar,qux=quux\"")
+	rootCmd.PersistentFlags().StringVar(&excludedTags, "excluded-tags", "", "A comma-separated list of AWS tags to exclude: eg. exclude resources with tags \"foo=bar,bar,qux=quux\"")
 }
