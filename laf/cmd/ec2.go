@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/j0shgrant/lost-and-found/internal/aws"
+	"github.com/j0shgrant/lost-and-found/internal/aws/ec2/instance"
+	"github.com/j0shgrant/lost-and-found/internal/tags"
 	"github.com/spf13/cobra"
 	"os"
 	"strings"
+	"sync"
 )
 
 var ec2Cmd = &cobra.Command{
@@ -27,42 +30,53 @@ var ec2Cmd = &cobra.Command{
 		}
 
 		// build list of tags
-		requiredTags, err := aws.ParseTags(requiredTagsFlag)
+		requiredTags, err := tags.ParseTags(requiredTagsFlag)
 		if err != nil {
 			_, _ = fmt.Fprintln(os.Stderr, err.Error())
 			os.Exit(1)
 		}
-		excludedTags, err := aws.ParseTags(excludedTagsFlag)
+		excludedTags, err := tags.ParseTags(excludedTagsFlag)
 		if err != nil {
 			_, _ = fmt.Fprintln(os.Stderr, err.Error())
 			os.Exit(1)
 		}
 
-		// build filters
-		filters := aws.EC2FiltersFromTags(requiredTags)
-
-		// build EC2 service
-		ec2, err := aws.NewEC2Service(regions)
+		// build configs for regions
+		configs, err := aws.NewConfigsFromRegions(regions)
 		if err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "encountered an error initialising EC2 client: %s\n", err.Error())
+			_, _ = fmt.Fprintln(os.Stderr, err.Error())
 			os.Exit(1)
 		}
 
-		// listed filtered instances
-		instances, err := ec2.ListInstances(filters)
-		if err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "encountered an error listing EC2 instances: %s\n", err.Error())
-			os.Exit(1)
+		// create instance services for regions
+		var services []instance.Service
+		for _, config := range configs {
+			services = append(services, instance.NewServiceForRegion(config))
 		}
-		if instances == nil {
-			_, _ = fmt.Fprintln(os.Stderr, "attempting to list EC2 instances returned nil")
-			os.Exit(1)
+
+		// list filtered instances by region
+		var wg sync.WaitGroup
+		var instances []instance.Instance
+		for _, service := range services {
+			service := service
+			wg.Add(1)
+			go func() {
+				is, err := service.Get(requiredTags)
+				if err != nil {
+					_, _ = fmt.Fprintln(os.Stderr, err.Error())
+					os.Exit(1)
+				}
+
+				instances = append(instances, is...)
+				wg.Done()
+			}()
 		}
+		wg.Wait()
 
 		var filteredInstances []types.Instance
 		for _, instance := range instances {
-			if !aws.EC2InstanceHasExcludedTags(excludedTags, instance) {
-				filteredInstances = append(filteredInstances, instance)
+			if !tags.HasExcludedTags(excludedTags, instance.Tags()) {
+				filteredInstances = append(filteredInstances, instance.Instance)
 			}
 		}
 

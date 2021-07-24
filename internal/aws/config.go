@@ -8,7 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 )
 
-func newConfigsFromRegions(regions []string) (map[string]aws.Config, error) {
+func NewConfigsFromRegions(regions []string) (map[string]aws.Config, error) {
 	// load in base AWS config
 	baseCfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
